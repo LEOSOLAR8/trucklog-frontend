@@ -246,9 +246,11 @@ function RoutePopupBody({
 
 function FuelPopupBody({ mileMarker }: { mileMarker: number | undefined }) {
   return (
-    <div className="route-popup-body">
+    <div className="route-popup-body route-popup-body--fuel">
       <strong>Fuel stop</strong>
-      <div className="route-popup-place">@ {mileMarker ?? "?"} mi along route</div>
+      <div className="route-popup-place">
+        Mile {mileMarker ?? "?"} along route
+      </div>
     </div>
   );
 }
