@@ -1,9 +1,10 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 
 import DriverInfoCard from "./components/DriverInfoCard";
 import TripForm from "./components/TripForm";
 import RouteMap from "./components/RouteMap";
 import ELDLogs from "./components/ELDLogs";
+import { IconTruck } from "./components/UiIcons";
 import { planTrip } from "./api/tripApi";
 import {
   type LocationFieldKey,
@@ -94,8 +95,13 @@ function App() {
   return (
     <div className="app-shell">
       <div className="app-workspace">
-        <header className="app-topnav">
-          <h1 className="app-topnav-center">Driver’s Daily Log</h1>
+        <header
+          className="app-topnav"
+        >
+          <h1 className="app-topnav-center">
+            <IconTruck className="app-title-icon" />
+            <span>Driver's Daily Log</span>
+          </h1>
         </header>
 
         <div className="dashboard">
@@ -187,3 +193,4 @@ function App() {
 }
 
 export default App;
+

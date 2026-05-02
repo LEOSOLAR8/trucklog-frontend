@@ -1,6 +1,11 @@
 import { type ChangeEvent, useEffect } from "react";
 
 import { saveDriverProfile } from "../utils/driverProfileStorage";
+import {
+  IconCalendar,
+  IconClock,
+  IconUser,
+} from "./UiIcons";
 
 interface Props {
   driverName: string;
@@ -25,11 +30,15 @@ export default function DriverInfoCard({
 
   return (
     <section className="card driver-info-card" aria-label="Driver information">
-      <h2>Driver</h2>
+      <h2 className="section-title">
+        <IconUser className="section-title-icon" />
+        <span>Driver</span>
+      </h2>
       <div className="location-field">
         <div className="location-field-header">
           <label htmlFor="driver_name" className="location-field-label">
-            Driver name
+            <IconUser className="field-label-icon" />
+            <span>Driver name</span>
           </label>
         </div>
         <input
@@ -47,7 +56,8 @@ export default function DriverInfoCard({
       <div className="location-field">
         <div className="location-field-header">
           <label htmlFor="log_date" className="location-field-label">
-            Log date
+            <IconCalendar className="field-label-icon" />
+            <span>Log date</span>
           </label>
         </div>
         <input
@@ -63,7 +73,8 @@ export default function DriverInfoCard({
       <div className="location-field">
         <div className="location-field-header">
           <label htmlFor="duty_start_time" className="location-field-label">
-            Duty start time
+            <IconClock className="field-label-icon" />
+            <span>Duty start time</span>
           </label>
         </div>
         <input

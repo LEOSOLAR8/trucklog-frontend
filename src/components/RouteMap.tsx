@@ -7,6 +7,7 @@ import {
   Polyline,
   Marker,
   Popup,
+  Tooltip,
   useMap,
   useMapEvents,
 } from "react-leaflet";
@@ -17,6 +18,11 @@ import {
   isUiLocationReady,
   uiLocationRemarkPlace,
 } from "../types/trip";
+import {
+  IconClock,
+  IconListTree,
+  IconRuler,
+} from "./UiIcons";
 
 type LatLngTuple = [number, number];
 
@@ -62,23 +68,23 @@ function ClosePopupsOnNewReplay({ replayKey }: { replayKey: number }) {
 /** Red = current/start, neutral pick for pickup waypoint, blue = drop-off */
 const ICON_CURRENT = L.divIcon({
   className: "route-pin-icon",
-  html: `<span class="route-pin-dot" style="background:#dc2626"></span>`,
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
+  html: `<span class="route-pin route-pin--current"></span>`,
+  iconSize: [36, 44],
+  iconAnchor: [18, 42],
 });
 
 const ICON_PICKUP = L.divIcon({
   className: "route-pin-icon",
-  html: `<span class="route-pin-dot" style="background:#0d9488"></span>`,
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
+  html: `<span class="route-pin route-pin--pickup"></span>`,
+  iconSize: [28, 34],
+  iconAnchor: [14, 32],
 });
 
 const ICON_DROPOFF = L.divIcon({
   className: "route-pin-icon",
-  html: `<span class="route-pin-dot" style="background:#2563eb"></span>`,
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
+  html: `<span class="route-pin route-pin--dropoff"></span>`,
+  iconSize: [28, 34],
+  iconAnchor: [14, 32],
 });
 
 const ICON_TRACKER = L.divIcon({
@@ -92,6 +98,28 @@ function draftIconForField(key: LocationFieldKey): L.DivIcon {
   if (key === "current_location") return ICON_CURRENT;
   if (key === "dropoff_location") return ICON_DROPOFF;
   return ICON_PICKUP;
+}
+
+function fuelStopIcon(index: number, mileMarker: number | undefined): L.DivIcon {
+  const mile =
+    typeof mileMarker === "number" && Number.isFinite(mileMarker)
+      ? `${Math.round(mileMarker)} mi`
+      : "Fuel";
+
+  return L.divIcon({
+    className: "route-fuel-stop-icon",
+    html: `
+      <span class="fuel-callout">
+        <span class="fuel-callout__top">
+          <span class="fuel-callout__left">Fuel ${index + 1}</span>
+          <span class="fuel-callout__right">${mile}</span>
+        </span>
+        <span class="fuel-callout__tail"></span>
+      </span>
+    `,
+    iconSize: [150, 58],
+    iconAnchor: [75, 55],
+  });
 }
 
 interface Props {
@@ -190,10 +218,12 @@ function RoutePopupBody({
   title,
   planLocations,
   fieldKey,
+  details,
 }: {
   title: string;
   planLocations?: Record<LocationFieldKey, UiLocation>;
   fieldKey: LocationFieldKey;
+  details?: string[];
 }) {
   const loc = planLocations?.[fieldKey];
   const primary = loc ? uiLocationRemarkPlace(loc) : "—";
@@ -202,6 +232,13 @@ function RoutePopupBody({
     <div className="route-popup-body">
       <strong>{title}</strong>
       <div className="route-popup-place">{primary}</div>
+      {details?.length ? (
+        <div className="route-popup-details">
+          {details.map((detail) => (
+            <span key={detail}>{detail}</span>
+          ))}
+        </div>
+      ) : null}
       {secondary ? <div className="route-popup-coords muted">{secondary}</div> : null}
     </div>
   );
@@ -303,20 +340,25 @@ interface TrackingMilestone {
   onOpen: () => void;
 }
 
-/** Brown tracking polyline + moving marker; runs when `replayKey` bumps after Create. */
+/** Animated tracking polyline + moving marker; runs when `replayKey` bumps after Create. */
 function RouteTrackingOverlay({
   positions,
   durationMs,
   replayKey,
   milestones,
+  routeDistanceMiles,
+  routeDurationHours,
 }: {
   positions: LatLngTuple[];
   durationMs: number;
   replayKey: number;
   milestones?: TrackingMilestone[];
+  routeDistanceMiles: number;
+  routeDurationHours: number;
 }) {
   const [trail, setTrail] = useState<LatLngTuple[]>([]);
   const [head, setHead] = useState<LatLngTuple>(US_CENTER);
+  const [progress, setProgress] = useState(0);
 
   const { cum, total } = useMemo(() => buildCumulative(positions), [positions]);
   const firedMilestones = useRef<Set<string>>(new Set());
@@ -343,6 +385,7 @@ function RouteTrackingOverlay({
     function frame(now: number) {
       const elapsedMs = Math.max(0, now - startWall);
       const t = Math.min(1, elapsedMs / durationMs);
+      setProgress(t);
       const { trail: tr, head: h } = pointAtNormalizedDistance(
         positions,
         cum,
@@ -375,6 +418,10 @@ function RouteTrackingOverlay({
   if (positions.length < 2) return null;
 
   const showBrown = trail.length >= 2;
+  const drivenMiles = Math.max(0, routeDistanceMiles * progress);
+  const remainingMiles = Math.max(0, routeDistanceMiles - drivenMiles);
+  const elapsedHours = Math.max(0, routeDurationHours * progress);
+  const remainingHours = Math.max(0, routeDurationHours - elapsedHours);
 
   return (
     <>
@@ -383,9 +430,9 @@ function RouteTrackingOverlay({
           positions={trail}
           pane="overlayPane"
           pathOptions={{
-            color: "#92400e",
-            weight: 7,
-            opacity: 0.95,
+            color: "#ff5a1f",
+            weight: 6,
+            opacity: 1,
             lineCap: "round",
             lineJoin: "round",
           }}
@@ -393,7 +440,30 @@ function RouteTrackingOverlay({
       )}
       <Marker position={head} icon={ICON_TRACKER}>
         <Popup className="route-tracker-popup">
-          <span className="route-tracker-popup-label">Route tracker</span>
+          <div className="route-tracker-popup-card">
+            <strong>Driving tracker</strong>
+            <span className="route-tracker-popup-percent">
+              {Math.round(progress * 100)}% complete
+            </span>
+            <dl>
+              <div>
+                <dt>Driven</dt>
+                <dd>{Math.round(drivenMiles)} mi</dd>
+              </div>
+              <div>
+                <dt>Remaining</dt>
+                <dd>{Math.round(remainingMiles)} mi</dd>
+              </div>
+              <div>
+                <dt>Elapsed</dt>
+                <dd>{elapsedHours.toFixed(1)} h</dd>
+              </div>
+              <div>
+                <dt>Left</dt>
+                <dd>{remainingHours.toFixed(1)} h</dd>
+              </div>
+            </dl>
+          </div>
         </Popup>
       </Marker>
     </>
@@ -583,6 +653,24 @@ export default function RouteMap({
   }, [hasRoute, route, positions, pickupAlongRoute, stops]);
 
   const pickingActive = Boolean(pickTarget && onMapLocationPick);
+  const pickupLeg = route?.legs?.[0];
+  const dropoffLeg = route?.legs?.[1];
+  const startDetails = hasRoute ? ["0 mi", "Trip start"] : undefined;
+  const pickupDetails =
+    hasRoute && pickupLeg
+      ? [
+          `${Math.round(pickupLeg.distance)} mi from start`,
+          `${pickupLeg.duration.toFixed(1)} h drive`,
+        ]
+      : undefined;
+  const dropoffDetails =
+    hasRoute && route
+      ? [
+          `${Math.round(route.distance)} mi total`,
+          `${route.duration.toFixed(1)} h total`,
+          dropoffLeg ? `${Math.round(dropoffLeg.distance)} mi after pickup` : "",
+        ].filter(Boolean)
+      : undefined;
 
   return (
     <section className="card map-card map-card--fill">
@@ -622,7 +710,12 @@ export default function RouteMap({
           preferCanvas
           closePopupOnClick={false}
         >
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <TileLayer
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            className="route-map-tiles"
+            opacity={0.9}
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          />
 
           <MapViewSync
             boundsPoints={mergedBoundsPoints}
@@ -662,9 +755,19 @@ export default function RouteMap({
               <Polyline
                 positions={positions}
                 pathOptions={{
-                  color: "#64748b",
+                  color: "#d6d1c4",
+                  weight: 8,
+                  opacity: 0.62,
+                  lineCap: "round",
+                  lineJoin: "round",
+                }}
+              />
+              <Polyline
+                positions={positions}
+                pathOptions={{
+                  color: "#ff5a1f",
                   weight: 5,
-                  opacity: 0.55,
+                  opacity: 0.96,
                   lineCap: "round",
                   lineJoin: "round",
                 }}
@@ -675,6 +778,8 @@ export default function RouteMap({
                   durationMs={replayMs}
                   replayKey={routeTrackingReplayKey}
                   milestones={trackingMilestones}
+                  routeDistanceMiles={route?.distance ?? 0}
+                  routeDurationHours={route?.duration ?? 0}
                 />
               ) : null}
 
@@ -683,13 +788,19 @@ export default function RouteMap({
                 position={positions[0]!}
                 icon={ICON_CURRENT}
               >
-                <Popup {...ROUTE_SITE_POPUP_PROPS}>
+                <Tooltip
+                  permanent
+                  direction="top"
+                  offset={[0, -40]}
+                  className="route-site-tooltip route-site-tooltip--current"
+                >
                   <RoutePopupBody
-                    title="Start (current)"
+                    title="Start"
                     planLocations={planLocations}
                     fieldKey="current_location"
+                    details={startDetails}
                   />
-                </Popup>
+                </Tooltip>
               </Marker>
 
               {pickupAlongRoute ? (
@@ -698,13 +809,19 @@ export default function RouteMap({
                   position={pickupAlongRoute}
                   icon={ICON_PICKUP}
                 >
-                  <Popup {...ROUTE_SITE_POPUP_PROPS}>
+                  <Tooltip
+                    permanent
+                    direction="top"
+                    offset={[0, -32]}
+                    className="route-site-tooltip route-site-tooltip--pickup"
+                  >
                     <RoutePopupBody
                       title="Pickup"
                       planLocations={planLocations}
                       fieldKey="pickup_location"
+                      details={pickupDetails}
                     />
-                  </Popup>
+                  </Tooltip>
                 </Marker>
               ) : null}
 
@@ -713,13 +830,19 @@ export default function RouteMap({
                 position={positions[positions.length - 1]!}
                 icon={ICON_DROPOFF}
               >
-                <Popup {...ROUTE_SITE_POPUP_PROPS}>
+                <Tooltip
+                  permanent
+                  direction="top"
+                  offset={[0, -32]}
+                  className="route-site-tooltip route-site-tooltip--dropoff"
+                >
                   <RoutePopupBody
                     title="Drop-off"
                     planLocations={planLocations}
                     fieldKey="dropoff_location"
+                    details={dropoffDetails}
                   />
-                </Popup>
+                </Tooltip>
               </Marker>
 
               {stops?.fuel?.map((stop, i) =>
@@ -731,6 +854,7 @@ export default function RouteMap({
                       else fuelMarkerRefs.current.delete(i);
                     }}
                     position={[stop.location.lat, stop.location.lng]}
+                    icon={fuelStopIcon(i, stop.mile_marker)}
                   >
                     <Popup {...ROUTE_SITE_POPUP_PROPS}>
                       <FuelPopupBody mileMarker={stop.mile_marker} />
@@ -757,15 +881,24 @@ export default function RouteMap({
 
         <aside className={`route-stats${!hasRoute ? " route-stats--muted" : ""}`}>
           <p>
-            <strong>Distance</strong>
+            <strong>
+              <IconRuler className="route-stats-icon" />
+              <span>Distance</span>
+            </strong>
             <span>{hasRoute ? `${milesUi} mi` : "—"}</span>
           </p>
           <p>
-            <strong>Duration</strong>
+            <strong>
+              <IconClock className="route-stats-icon" />
+              <span>Duration</span>
+            </strong>
             <span>{hasRoute ? `${hoursUi.toFixed(1)} h` : "—"}</span>
           </p>
           <p>
-            <strong>Segments</strong>
+            <strong>
+              <IconListTree className="route-stats-icon" />
+              <span>Segments</span>
+            </strong>
             <span>{hasRoute ? segmentsUi : "—"}</span>
           </p>
         </aside>

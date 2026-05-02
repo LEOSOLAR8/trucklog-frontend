@@ -1,4 +1,5 @@
 import {
+  type ComponentType,
   type ChangeEvent,
   type FormEvent,
 } from "react";
@@ -12,6 +13,13 @@ import {
   isUiLocationReady,
   uiLocationToPayload,
 } from "../types/trip";
+import {
+  IconFlag,
+  IconGauge,
+  IconNavigation,
+  IconPackageCheck,
+  IconRoute,
+} from "./UiIcons";
 
 interface Props {
   locations: Record<LocationFieldKey, UiLocation>;
@@ -28,6 +36,12 @@ const LABELS: Record<LocationFieldKey, string> = {
   current_location: "Current location",
   pickup_location: "Pickup location",
   dropoff_location: "Drop-off location",
+};
+
+const LOCATION_ICONS: Record<LocationFieldKey, ComponentType<{ className?: string }>> = {
+  current_location: IconNavigation,
+  pickup_location: IconPackageCheck,
+  dropoff_location: IconFlag,
 };
 
 function IconSearch({ className }: { className?: string }) {
@@ -153,12 +167,14 @@ export default function TripForm({
   const locationRow = (key: LocationFieldKey) => {
     const loc = locations[key];
     const isPicking = pickTarget === key;
+    const LocationIcon = LOCATION_ICONS[key];
 
     return (
       <div key={key} className="location-field">
         <div className="location-field-header">
           <span id={`${key}-label`} className="location-field-label">
-            {LABELS[key]}
+            <LocationIcon className="field-label-icon" />
+            <span>{LABELS[key]}</span>
           </span>
           <div
             className="input-mode-toggle location-mode-toggle"
@@ -270,7 +286,10 @@ export default function TripForm({
 
   return (
     <form onSubmit={submit} className="card">
-      <h2>Trip planning</h2>
+      <h2 className="section-title">
+        <IconRoute className="section-title-icon" />
+        <span>Trip planning</span>
+      </h2>
 
       {locationRow("current_location")}
       {locationRow("pickup_location")}
@@ -279,7 +298,8 @@ export default function TripForm({
       <div className="location-field">
         <div className="location-field-header">
           <label htmlFor="cycle_used" className="location-field-label">
-            Cycle used (hours)
+            <IconGauge className="field-label-icon" />
+            <span>Cycle used (hours)</span>
           </label>
         </div>
         <input
