@@ -1,0 +1,33 @@
+:root {
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.45;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: #111827;
+  background: #0a2f2e;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+h1,
+h2 {
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
+}
